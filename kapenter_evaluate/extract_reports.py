@@ -1,0 +1,91 @@
+import pandas as pd
+import pkg_resources
+from prometheus_api_client import PrometheusConnect, MetricRangeDataFrame
+import datetime as dt
+import pytz
+from .utils import CachingAgent
+from .compute_run_kpis import extract_raw_milestone_kpis
+cum_cols = ['pending_pod_secs', 'nodes_terminated', 'nodes_created', 'provisioning_sched_simulation_sum',
+                    'disruption_sched_simulation_sum', 'total_scheduling_sim_time', 'pod_scheduling_time',
+                    'disruption_eval_duration_sum_drift', 'disruption_eval_duration_sum_emptiness',
+                              'disruption_eval_duration_sum_expiration', 'disruption_eval_duration_sum_multi',
+                              'disruption_eval_duration_sum_empty', 'disruption_eval_duration_sum_single',
+                    'total_disruption_evaluation_duration_sum',
+                    ]
+
+
+def get_metrics(timestamp_csv: str, prometheus_endpoint: str) -> None:
+    """Provide a local filepath to a csv file that contains the milestone start and stop times"""
+    output = pd.DataFrame()
+    current_time = dt.datetime.now(tz=pytz.utc)
+    try:
+        milestones_df = pd.read_csv(timestamp_csv)
+    except Exception as ex:
+        print("loading milestone's timestamps csv failed for some reason.")
+        raise ex
+    try:
+        # TODO: I may need to add in the code to do port-forwarding commands here!
+        prom = PrometheusConnect(url=prometheus_endpoint, disable_ssl=True)
+    except Exception as ex:
+        print("Failed to connect to prometheus endpoint!")
+        raise ex
+    metrics_list = prom.all_metrics()
+    metrics_list = [x for x in metrics_list if 'karpenter' in x]
+    milestone_count = 0
+    report_list = []
+    for idx, row in milestones_df.iterrows():
+        write_reports_for_timestamps(
+            row['start_time'],
+            row['completed_time'],
+            metrics_list,
+            prom,
+            report_name=idx
+        )
+        output = extract_raw_milestone_kpis(idx, output, milestones_df)
+        milestone_count += 1
+        report_list.append(idx)
+    # Correct Sum Columns from previous events
+    for x in range(1, milestone_count):
+        idx = output.index[-(x + 1):-x][0]
+        for col in cum_cols:
+            if col == 'pending_pod_secs':
+                pass
+                # print('wait here')
+            curr_value = output.at[report_list[x], col] - output.at[report_list[idx], col]
+            if curr_value < 0:
+                raise ValueError('Cumulative Metrics should not become negative!')
+            output.at[report_list[x], col] = output.at[report_list[x], col] - output.at[idx, col]
+    # TODO: It may be nice to collect other info about the run (e.g. karpenter version, commit tag, etc) for longer term reports here
+    output['report_timestamp'] = current_time
+    # TODO: Setup long term collection of the test reports to a central location for analysis
+    print(output.to_markdown())
+    CachingAgent().cache_dataframe('final_report.parquet', output)
+
+
+def write_reports_for_timestamps(start_ts, end_ts, metrics_list, prom, report_name):
+    chunk_size = dt.timedelta(seconds=5)
+    for current_metric in metrics_list:
+        try:
+            current_df = MetricRangeDataFrame(prom.get_metric_range_data(
+                current_metric,  # this is the metric name and label config
+                start_time=start_ts,
+                end_time=end_ts,
+                chunk_size=chunk_size,
+            ))
+        except Exception as ex:
+            import traceback
+            print(f'Metric {current_metric} failed to report for report: {report_name}\n')
+            traceback.print_exc()
+            try:
+                print(prom.get_metric_range_data(
+                    current_metric,  # this is the metric name and label config
+                    start_time=start_ts,
+                    end_time=end_ts,
+                    chunk_size=chunk_size,
+                ))
+            except Exception as ex:
+                print('debug metric range data did not print\n')
+                continue
+            continue
+        current_df['ts'] = current_df.index
+        CachingAgent().cache_dataframe(f'/{report_name}/{current_metric}.parquet', current_df)
