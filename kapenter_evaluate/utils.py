@@ -4,6 +4,14 @@ from pathlib import Path
 import pandas as pd
 
 
+def fix_arrow_ns_timestamp(df):
+    cols_to_fix = [x for x in df.columns if df[x].dtype.name == 'timedelta64[ns]']
+    temp_df = df
+    for time_col in cols_to_fix:
+        df[time_col] = temp_df[[time_col]].astype(int).loc[:, time_col] / (10 ** 9)
+    return df
+
+
 class Singleton(type):
     _instances = {}
 
@@ -38,7 +46,11 @@ class CachingAgent(metaclass=Singleton):
         if '.parquet' not in key:
             key = key + '.parquet'
         try:
-            df.to_parquet(f'{self.root_path}{key}')
+            full_path = f'{self.root_path}{key}'
+            path_comps = full_path.split('/')
+            dirs = '/'.join(path_comps[:-1])
+            self.ensure_directory(dirs)
+            df.to_parquet(full_path)
             return self.check_cache(key)
         except Exception as ex:
             print(ex)
@@ -62,4 +74,4 @@ class CachingAgent(metaclass=Singleton):
             print(f"Directory created: {abs_dir_path}")
         else:
             print(f"Directory already exists: {abs_dir_path}")
-        return abs_dir_path
+        return abs_dir_path + "/"

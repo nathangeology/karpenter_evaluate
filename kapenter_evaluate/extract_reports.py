@@ -1,5 +1,6 @@
 import pandas as pd
 import pkg_resources
+from .prometheus_helper import PrometheusHelper
 from prometheus_api_client import PrometheusConnect, MetricRangeDataFrame
 import datetime as dt
 import pytz
@@ -14,31 +15,25 @@ cum_cols = ['pending_pod_secs', 'nodes_terminated', 'nodes_created', 'provisioni
                     ]
 
 
-def get_metrics(timestamp_csv: str, prometheus_endpoint: str) -> None:
+def get_metrics(timestamp_csv: str, prometheus_endpoint="http://localhost:9090") -> None:
     """Provide a local filepath to a csv file that contains the milestone start and stop times"""
     output = pd.DataFrame()
     current_time = dt.datetime.now(tz=pytz.utc)
+    metrics_list = PrometheusHelper().get_metrics_list()
     try:
-        milestones_df = pd.read_csv(timestamp_csv)
+        milestones_df = pd.read_csv(timestamp_csv, index_col=0)
     except Exception as ex:
         print("loading milestone's timestamps csv failed for some reason.")
         raise ex
-    try:
-        # TODO: I may need to add in the code to do port-forwarding commands here!
-        prom = PrometheusConnect(url=prometheus_endpoint, disable_ssl=True)
-    except Exception as ex:
-        print("Failed to connect to prometheus endpoint!")
-        raise ex
-    metrics_list = prom.all_metrics()
-    metrics_list = [x for x in metrics_list if 'karpenter' in x]
     milestone_count = 0
     report_list = []
     for idx, row in milestones_df.iterrows():
+        if idx == 'end_of_actions':
+            continue
         write_reports_for_timestamps(
             row['start_time'],
             row['completed_time'],
             metrics_list,
-            prom,
             report_name=idx
         )
         output = extract_raw_milestone_kpis(idx, output, milestones_df)
@@ -51,7 +46,10 @@ def get_metrics(timestamp_csv: str, prometheus_endpoint: str) -> None:
             if col == 'pending_pod_secs':
                 pass
                 # print('wait here')
-            curr_value = output.at[report_list[x], col] - output.at[report_list[idx], col]
+            try:
+                curr_value = output.at[report_list[x], col] - output.at[idx, col]
+            except TypeError as ex:
+                print('here')
             if curr_value < 0:
                 raise ValueError('Cumulative Metrics should not become negative!')
             output.at[report_list[x], col] = output.at[report_list[x], col] - output.at[idx, col]
@@ -62,30 +60,16 @@ def get_metrics(timestamp_csv: str, prometheus_endpoint: str) -> None:
     CachingAgent().cache_dataframe('final_report.parquet', output)
 
 
-def write_reports_for_timestamps(start_ts, end_ts, metrics_list, prom, report_name):
-    chunk_size = dt.timedelta(seconds=5)
+def write_reports_for_timestamps(start_ts, end_ts, metrics_list, report_name):
     for current_metric in metrics_list:
-        try:
-            current_df = MetricRangeDataFrame(prom.get_metric_range_data(
-                current_metric,  # this is the metric name and label config
-                start_time=start_ts,
-                end_time=end_ts,
-                chunk_size=chunk_size,
-            ))
-        except Exception as ex:
-            import traceback
-            print(f'Metric {current_metric} failed to report for report: {report_name}\n')
-            traceback.print_exc()
-            try:
-                print(prom.get_metric_range_data(
-                    current_metric,  # this is the metric name and label config
-                    start_time=start_ts,
-                    end_time=end_ts,
-                    chunk_size=chunk_size,
-                ))
-            except Exception as ex:
-                print('debug metric range data did not print\n')
-                continue
+
+        current_df = PrometheusHelper().get_metric_data_for_range(
+            report_name=report_name,
+            start_time=start_ts,
+            end_time=end_ts,
+            current_metric=current_metric
+        )
+        if current_df.empty:
             continue
         current_df['ts'] = current_df.index
         CachingAgent().cache_dataframe(f'/{report_name}/{current_metric}.parquet', current_df)
