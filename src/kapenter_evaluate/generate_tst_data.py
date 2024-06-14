@@ -33,7 +33,7 @@ if __name__ == "__main__":
     root_path = 's3://containers-ds-eks-simulator-cache2/2024-06-10 07:47:24.505192_01bb91a3-e7a2-47ac-ae51-4099c3a20b8b/'
     mile_stone1 = '1_steady_tps_provisioning_ab_interference_c'
     mile_stone2 = '2_steady_tps_consolidation_ab_test_interference_c'
-    target_path = os.path.abspath('../test/test_data')
+    target_path = os.path.abspath('../../test/test_data')
     milestone_table = aws.s3.read_parquet(f'{root_path}state_transition_data.parquet')
     milestone1_prom_paths = aws.s3.list_objects(f'{root_path}{mile_stone1}/')
     milestone2_prom_paths = aws.s3.list_objects(f'{root_path}{mile_stone2}/')

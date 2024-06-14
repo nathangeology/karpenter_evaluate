@@ -17,7 +17,7 @@ class PrometheusHelper(metaclass=Singleton):
     def get_metrics_list(self):
         if self.test_mode:
             if self.metrics_list is None:
-                metric_path_root = os.path.abspath(f'../test/test_data/')
+                metric_path_root = os.path.abspath(f'../../test/test_data/')
                 df = pd.read_parquet(f'{metric_path_root}/metrics_list.parquet')
                 self.metrics_list = list(set(df['metric_name']))
         else:

@@ -1,4 +1,4 @@
-from kapenter_evaluate import get_metrics, PrometheusHelper
+from src.kapenter_evaluate import get_metrics, PrometheusHelper
 import os
 
 
