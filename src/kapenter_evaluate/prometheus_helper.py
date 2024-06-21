@@ -74,6 +74,8 @@ class PrometheusHelper(metaclass=Singleton):
 
     def handle_sum_metric(self, current_metric, start_time, end_time, report_name):
         df = self.range_metric(current_metric, start_time, end_time, report_name)
+        if df.empty:
+            return df
         min_value = df['value'].min(skipna=True)
         df['value'] = df['value'] - min_value
         return df
