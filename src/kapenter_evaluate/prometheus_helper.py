@@ -4,6 +4,7 @@ from .utils import Singleton
 from prometheus_api_client import PrometheusConnect, MetricRangeDataFrame
 import datetime as dt
 import os
+import pytz
 
 
 class PrometheusHelper(metaclass=Singleton):
@@ -32,6 +33,12 @@ class PrometheusHelper(metaclass=Singleton):
             start_time,
             end_time,
             ) -> pd.DataFrame:
+        if isinstance(start_time, str):
+            timestamp_format = '%Y-%m-%dT%H:%M:%SZ'
+            start_time = dt.datetime.strptime(start_time, timestamp_format)
+            start_time = start_time.replace(tzinfo=pytz.utc)
+            end_time = dt.datetime.strptime(end_time, timestamp_format)
+            end_time = end_time.replace(tzinfo=pytz.utc)
         if self.test_mode:
             metric_path_root = os.path.abspath(f'../test/test_data/{report_name}/')
             try:
@@ -39,25 +46,40 @@ class PrometheusHelper(metaclass=Singleton):
             except Exception as ex:
                 return pd.DataFrame()
         else:
-            chunk_size = dt.timedelta(seconds=5)
-            if self.prom is None:
-                self.initialize_prom()
-            try:
-                current_df = MetricRangeDataFrame(self.prom.get_metric_range_data(
-                    current_metric,  # this is the metric name and label config
-                    start_time=start_time,
-                    end_time=end_time,
-                    chunk_size=chunk_size,
-                ))
-                return current_df
-            except Exception as ex:
-                import traceback
-                print(f'Metric {current_metric} failed to report for report_name {report_name}\n')
-                traceback.print_exc()
-                return pd.DataFrame()
+            if 'sum' not in current_metric:
+                current_df = self.range_metric(current_metric, start_time, end_time, report_name)
+            else:
+                current_df = self.handle_sum_metric(current_metric, start_time, end_time, report_name)
+
+            return current_df
+
+
+    def range_metric(self, current_metric, start_time, end_time, report_name) -> pd.DataFrame:
+        chunk_size = dt.timedelta(seconds=5)
+        if self.prom is None:
+            self.initialize_prom()
+        try:
+            current_df = MetricRangeDataFrame(self.prom.get_metric_range_data(
+                current_metric,  # this is the metric name and label config
+                start_time=start_time,
+                end_time=end_time,
+                chunk_size=chunk_size,
+            ))
+            return current_df
+        except Exception as ex:
+            import traceback
+            print(f'Metric {current_metric} failed to report for report_name {report_name}\n')
+            traceback.print_exc()
+            return pd.DataFrame()
+
+    def handle_sum_metric(self, current_metric, start_time, end_time, report_name):
+        df = self.range_metric(current_metric, start_time, end_time, report_name)
+        min_value = df['value'].min(skipna=True)
+        df['value'] = df['value'] - min_value
+        return df
 
     def start_port_forward(self):
-        prometheus_namespace = os.environ.get('prom_ns', 'karpenter')
+        prometheus_namespace = os.environ.get('prom_ns', 'prometheus')
         cmd = ["kubectl", "port-forward", "service/prometheus-kube-prometheus-prometheus", "9090:9090", "-n",
                f"{prometheus_namespace}"]
         # Start the command in the background

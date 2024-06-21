@@ -50,7 +50,13 @@ class CachingAgent(metaclass=Singleton):
             path_comps = full_path.split('/')
             dirs = '/'.join(path_comps[:-1])
             self.ensure_directory(dirs)
-            df.to_parquet(full_path)
+            # Allow arrow to coerce to ms timestamps while writing
+            parquet_args = {
+                'coerce_timestamps': 'us',
+                'allow_truncated_timestamps': True,
+            }
+
+            df.to_parquet(full_path, **parquet_args)
             return self.check_cache(key)
         except Exception as ex:
             print(ex)

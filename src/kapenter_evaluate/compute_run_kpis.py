@@ -12,8 +12,8 @@ def extract_raw_milestone_kpis(report_name, output, milestones_df):
     max_queue_df = CachingAgent().get_dataframe(
         f'{report_name}/karpenter_provisioner_scheduling_queue_depth')
     output.loc[report_name, 'total_end_to_end_time(sec)'] = (
-            pd.to_datetime(milestones_df.at[report_name, 'completed_time']) - pd.to_datetime(milestones_df.at[
-        report_name, 'start_time'])).seconds
+            pd.to_datetime(milestones_df.at[report_name, 'End']) - pd.to_datetime(milestones_df.at[
+        report_name, 'Start'])).seconds
     output.loc[report_name, 'max_provisioning_queue'] = max_queue_df.loc[
         max_queue_df['controller'] == 'provisioner', 'value'].max()
     output.loc[report_name, 'max_disruption_queue'] = max_queue_df.loc[
