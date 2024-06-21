@@ -2,13 +2,17 @@ import pandas as pd
 from .utils import CachingAgent
 
 
+# CPU Requests: sum(cluster:namespace:pod_cpu:active:kube_pod_container_resource_requests) by (namespace)
+# MEM Requests: sum(cluster:namespace:pod_memory:active:kube_pod_container_resource_requests) by (namespace)
+
 def extract_raw_milestone_kpis(report_name, output, milestones_df):
     pending_secs_df = CachingAgent().get_dataframe(
         f'{report_name}/karpenter_pods_startup_time_seconds_sum')
     try:
         output.loc[report_name, 'pending_pod_secs'] = pending_secs_df['value'].max()
     except Exception as ex:
-        print('here')
+        print(ex)
+        raise ValueError('Karpenter Metrics not availble in prometheus, check metrics endpoint config for karpenter')
     max_queue_df = CachingAgent().get_dataframe(
         f'{report_name}/karpenter_provisioner_scheduling_queue_depth')
     output.loc[report_name, 'total_end_to_end_time(sec)'] = (
