@@ -15,5 +15,7 @@ if __name__ == "__main__":
     for csv_file in csv_files:
         comps = csv_file.split('-')
         test_name = comps[-1].split('.')[0]
+        if csv_dir not in csv_file:
+            csv_file = csv_dir + csv_file
         get_metrics(csv_file, test_name)
     PrometheusHelper().stop_port_forward()
