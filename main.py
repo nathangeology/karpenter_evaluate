@@ -1,5 +1,5 @@
 import sys
-from kapenter_evaluate import get_metrics
+from kapenter_evaluate import get_metrics, PrometheusHelper
 import os
 
 
@@ -13,4 +13,7 @@ if __name__ == "__main__":
     # Filter the list to include only CSV files
     csv_files = [file for file in files if file.endswith('.csv')]
     for csv_file in csv_files:
-        get_metrics(csv_file)
+        comps = csv_file.split('-')
+        test_name = comps[-1].split('.')[0]
+        get_metrics(csv_file, test_name)
+    PrometheusHelper().stop_port_forward()
