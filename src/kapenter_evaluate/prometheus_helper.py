@@ -81,7 +81,7 @@ class PrometheusHelper(metaclass=Singleton):
         return df
 
     def start_port_forward(self):
-        prometheus_namespace = os.environ.get('prom_ns', 'prometheus')
+        prometheus_namespace = os.environ.get('prom_ns', 'monitoring')
         cmd = ["kubectl", "port-forward", "service/prometheus-kube-prometheus-prometheus", "9090:9090", "-n",
                f"{prometheus_namespace}"]
         # Start the command in the background
