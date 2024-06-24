@@ -106,4 +106,5 @@ class PrometheusHelper(metaclass=Singleton):
             raise ex
         metrics_list = self.prom.all_metrics()
         self.metrics_list = [x for x in metrics_list if 'karpenter' in x]
+        print('Count of karpenter metrics is {}'.format(len(self.metrics_list)))
 
