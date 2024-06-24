@@ -5,6 +5,8 @@ import os
 
 if __name__ == "__main__":
     csv_dir = os.environ['TEMP_DIR']
+    if '\n' in csv_dir:
+        csv_dir = csv_dir.split('\n')[0]
     if csv_dir[-1] != '/':
         csv_dir += '/'
     files = os.listdir(csv_dir)
