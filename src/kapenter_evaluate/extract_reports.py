@@ -36,7 +36,13 @@ def get_metrics(timestamp_csv: str, run_name: str, prometheus_endpoint="http://l
             metrics_list,
             report_name=idx
         )
-        output = extract_raw_milestone_kpis(idx, output, milestones_df)
+        try:
+            output = extract_raw_milestone_kpis(idx, output, milestones_df)
+        except Exception as ex:
+            if idx == 'AfterEach':
+                """After each seems to be too fast to get some 
+                metrics most of the time, so we should probably skip it when it errors."""
+                continue
         milestone_count += 1
         output['test_name'] = run_name
         report_list.append(idx)

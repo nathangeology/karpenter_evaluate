@@ -12,7 +12,7 @@ def extract_raw_milestone_kpis(report_name, output, milestones_df):
         output.loc[report_name, 'pending_pod_secs'] = pending_secs_df['value'].max()
     except Exception as ex:
         print(ex)
-        raise ValueError('Karpenter Metrics not availble in prometheus, check metrics endpoint config for karpenter')
+        raise ValueError('Karpenter Metrics not available in prometheus, check metrics endpoint config for karpenter')
     max_queue_df = CachingAgent().get_dataframe(
         f'{report_name}/karpenter_provisioner_scheduling_queue_depth')
     output.loc[report_name, 'total_end_to_end_time(sec)'] = (
