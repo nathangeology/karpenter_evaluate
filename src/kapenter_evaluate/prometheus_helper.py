@@ -55,7 +55,7 @@ class PrometheusHelper(metaclass=Singleton):
 
 
     def range_metric(self, current_metric, start_time, end_time, report_name) -> pd.DataFrame:
-        chunk_size = dt.timedelta(seconds=5)
+        chunk_size = dt.timedelta(seconds=1)
         if self.prom is None:
             self.initialize_prom()
         try:

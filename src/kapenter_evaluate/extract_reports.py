@@ -15,7 +15,7 @@ cum_cols = ['pending_pod_secs', 'nodes_terminated', 'nodes_created', 'provisioni
                     ]
 
 
-def get_metrics(timestamp_csv: str, run_name: str, prometheus_endpoint="http://localhost:9090") -> None:
+def get_metrics(timestamp_csv: str, run_name: str, prometheus_endpoint="http://localhost:9090") -> pd.Dataframe:
     """Provide a local filepath to a csv file that contains the milestone start and stop times"""
     output = pd.DataFrame()
     current_time = dt.datetime.now(tz=pytz.utc)
