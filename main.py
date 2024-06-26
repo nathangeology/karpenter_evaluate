@@ -7,7 +7,7 @@ import os
 
 if __name__ == "__main__":
     reports = []
-    csv_dir = os.environ['TEMP_DIR']
+    csv_dir = os.environ['OUTPUT_DIR']
     if '\n' in csv_dir:
         csv_dir = csv_dir.split('\n')[0]
     if csv_dir[-1] != '/':
