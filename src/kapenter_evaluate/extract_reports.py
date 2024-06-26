@@ -65,6 +65,7 @@ def get_metrics(timestamp_csv: str, run_name: str, prometheus_endpoint="http://l
     # TODO: Setup long term collection of the test reports to a central location for analysis
     print(output.to_markdown())
     CachingAgent().cache_dataframe(f'final_report-{run_name}.parquet', output)
+    return output
 
 
 def write_reports_for_timestamps(start_ts, end_ts, metrics_list, report_name):

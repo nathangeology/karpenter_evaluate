@@ -1,9 +1,12 @@
 import sys
+
+import pandas as pd
 from kapenter_evaluate import get_metrics, PrometheusHelper
 import os
 
 
 if __name__ == "__main__":
+    reports = []
     csv_dir = os.environ['TEMP_DIR']
     if '\n' in csv_dir:
         csv_dir = csv_dir.split('\n')[0]
@@ -17,5 +20,9 @@ if __name__ == "__main__":
         test_name = comps[-1].split('.')[0]
         if csv_dir not in csv_file:
             csv_file = csv_dir + csv_file
-        get_metrics(csv_file, test_name)
+        report = get_metrics(csv_file, test_name)
+        reports.append(report)
+    total_report = pd.concat(reports)
+    print('KPIs for all tests: \n')
+    print(total_report.to_markdown())
     PrometheusHelper().stop_port_forward()
