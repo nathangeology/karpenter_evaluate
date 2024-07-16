@@ -15,15 +15,18 @@ cum_cols = ['pending_pod_secs', 'nodes_terminated', 'nodes_created', 'provisioni
                     ]
 
 
-def get_metrics(timestamp_csv: str, run_name: str, prometheus_endpoint="http://localhost:9090") -> pd.DataFrame:
+def get_metrics(timestamp_csv: str, run_name: str, verbose: bool, prometheus_endpoint="http://localhost:9090") -> pd.DataFrame:
     """Provide a local filepath to a csv file that contains the milestone start and stop times"""
     output = pd.DataFrame()
     current_time = dt.datetime.now(tz=pytz.utc)
     metrics_list = PrometheusHelper().get_metrics_list()
+    if verbose:
+        PrometheusHelper().verbose = verbose
     try:
         milestones_df = pd.read_csv(timestamp_csv, index_col=0)
     except Exception as ex:
-        print("loading milestone's timestamps csv failed for some reason.")
+        if verbose:
+            print("loading milestone's timestamps csv failed for some reason.")
         raise ex
     milestone_count = 0
     report_list = []
@@ -37,7 +40,7 @@ def get_metrics(timestamp_csv: str, run_name: str, prometheus_endpoint="http://l
             report_name=idx
         )
         try:
-            output = extract_raw_milestone_kpis(idx, output, milestones_df)
+            output = extract_raw_milestone_kpis(idx, output, milestones_df, verbose)
         except Exception as ex:
             if idx == 'AfterEach':
                 """After each seems to be too fast to get some 
@@ -46,24 +49,12 @@ def get_metrics(timestamp_csv: str, run_name: str, prometheus_endpoint="http://l
         milestone_count += 1
         output['test_name'] = run_name
         report_list.append(idx)
-    # Correct Sum Columns from previous events
-    # for x in range(1, milestone_count):
-    #     idx = output.index[-(x + 1):-x][0]
-    #     for col in cum_cols:
-    #         if col == 'pending_pod_secs':
-    #             pass
-    #             # print('wait here')
-    #         try:
-    #             curr_value = output.at[report_list[x], col] - output.at[idx, col]
-    #         except TypeError as ex:
-    #             print('here')
-    #         if curr_value < 0:
-    #             raise ValueError('Cumulative Metrics should not become negative!')
-    #         output.at[report_list[x], col] = output.at[report_list[x], col] - output.at[idx, col]
+
     # TODO: It may be nice to collect other info about the run (e.g. karpenter version, commit tag, etc) for longer term reports here
     output['report_timestamp'] = current_time
     # TODO: Setup long term collection of the test reports to a central location for analysis
-    print(output.to_markdown())
+    if verbose:
+        print(output.to_markdown())
     CachingAgent().cache_dataframe(f'final_report-{run_name}.parquet', output)
     return output
 

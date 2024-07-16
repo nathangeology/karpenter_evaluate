@@ -14,6 +14,7 @@ class PrometheusHelper(metaclass=Singleton):
         self.metrics_list = None
         self.port_forward_ref = None
         self.prometheus_endpoint = "http://localhost:9090"
+        self.verbose = False
 
     def get_metrics_list(self):
         if self.test_mode:
@@ -67,9 +68,10 @@ class PrometheusHelper(metaclass=Singleton):
             ))
             return current_df
         except Exception as ex:
-            import traceback
-            print(f'Metric {current_metric} failed to report for report_name {report_name}\n')
-            traceback.print_exc()
+            if self.verbose:
+                import traceback
+                print(f'Metric {current_metric} failed to report for report_name {report_name}\n')
+                traceback.print_exc()
             return pd.DataFrame()
 
     def handle_sum_metric(self, current_metric, start_time, end_time, report_name):
